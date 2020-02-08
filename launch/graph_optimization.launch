@@ -1,0 +1,36 @@
+<launch>
+    <arg name="task_start_delay" default="15.0" />
+    <arg name="record_bag" default="_2020-02-01-05-50-34.bag"/>
+    <arg name="before" default="optimize_before"/>
+    <arg name="after" default="optimize_after"/>
+    <arg name="ground" default="ground_truth"/>
+    <arg name="path" default="path_compare"/>
+    <arg name="error" default="error_compare"/>
+    <arg name="cov_pose" default="0.1"/> <!-- covariance of pose : Q -->
+    <arg name="cov_scan" default="1.0"/> <!-- covariance of pose : R -->
+    <arg name="initial_wall" default="2.0"/> <!-- starting distance from wall -->
+    <arg name="gnd_truth" default="1.1"/>
+
+    <!-- rosbag play node -->
+    <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(find graph_optimization_mg_cs169)/bag/$(arg record_bag)"/>
+
+    <!-- Main script -->
+    <node pkg="graph_optimization_mg_cs169" type="graph_optimization.py" name="main_optimizer" output="screen">
+        <param name="output_g2o_before" value="$(find graph_optimization_mg_cs169)/data/$(arg before).g2o"/>
+        <param name="output_g2o_after" value="$(find graph_optimization_mg_cs169)/data/$(arg after).g2o"/>
+        <param name="output_csv_before" value="$(find graph_optimization_mg_cs169)/data/$(arg before).csv"/>
+        <param name="output_csv_after" value="$(find graph_optimization_mg_cs169)/data/$(arg after).csv"/>
+        <param name="output_csv_ground" value="$(find graph_optimization_mg_cs169)/data/$(arg ground).csv"/>
+        <param name="covariance_pose" value="$(arg cov_pose)" />
+        <param name="covariance_scan" value="$(arg cov_scan)" />
+        <param name="distance" value="$(arg initial_wall)" />
+        <param name="ground" value="$(arg gnd_truth)" />
+    </node>
+
+    <!-- plot -->
+    <node pkg="graph_optimization_mg_cs169" type="plotter.py" name="plot" output="screen" launch-prefix="bash -c 'sleep $(arg task_start_delay); $0 $@' ">
+        <param name="path_plot" value="$(find graph_optimization_mg_cs169)/data/$(arg path).pdf"/>
+        <param name="error_plot" value="$(find graph_optimization_mg_cs169)/data/$(arg error).pdf"/>
+    </node>
+
+</launch>
