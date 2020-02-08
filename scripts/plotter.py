@@ -5,18 +5,10 @@ import numpy as np
 import rospy
 
 # ========== set up necessary parts ========== #
-'''
-COMMON_PATH = '/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/'
-PLOT_PATH = '/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/plot/'
 
-A = 'optimize_before.csv'
-B = 'optimize_after.csv'
-C = 'ground_truth.csv'
-'''
-
-PATH_BEFORE = rospy.get_param("output_csv_before")
-PATH_AFTER = rospy.get_param("output_csv_after")
-PATH_GROUND = rospy.get_param("output_csv_ground")
+PATH_BEFORE = rospy.get_param("output_csv_before", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_before.csv")
+PATH_AFTER = rospy.get_param("output_csv_after", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_after.csv")
+PATH_GROUND = rospy.get_param("output_csv_ground", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/ground_truth.csv")
 SAVE_PATH_COMPARE = rospy.get_param("path_plot", default= '/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/plot/path_compare.pdf')
 SAVE_ERROR_COMPARE = rospy.get_param("error_plot", default='/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/plot/error_compare.pdf')
 

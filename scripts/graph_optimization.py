@@ -15,15 +15,15 @@ from timeit import default_timer as timer
 
 INDEX = 0 # LiDAR straightforward index
 MSG_INTERVAL_TIME = 0.5 # time threshold for stopping this node after the last cmd_vel msg
-GROUND_TRUTH_END_MEASURE = rospy.get_param("ground", default="1.1")
-INITIAL_DIST_TO_WALL = rospy.get_param("distance")
-Q = rospy.get_param("covariance_pose")
-R = rospy.get_param("covariance_scan")
-G2O_SAVE_PATH_BEFORE = rospy.get_param("output_g2o_before")
-G2O_SAVE_PATH_AFTER = rospy.get_param("output_g2o_after")
-CSV_SAVE_PATH_BEFORE = rospy.get_param("output_csv_before")
-CSV_SAVE_PATH_AFTER = rospy.get_param("output_csv_after")
-CSV_SAVE_PATH_GND = rospy.get_param("output_csv_ground")
+GROUND_TRUTH_END_MEASURE = float(rospy.get_param("ground", default="1.1"))
+INITIAL_DIST_TO_WALL = float(rospy.get_param("distance", default="2.0"))
+Q = float(rospy.get_param("covariance_pose", default="0.1"))
+R = float(rospy.get_param("covariance_scan", default="1.0"))
+G2O_SAVE_PATH_BEFORE = rospy.get_param("output_g2o_before", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_before.g2o")
+G2O_SAVE_PATH_AFTER = rospy.get_param("output_g2o_after", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_after.g2o")
+CSV_SAVE_PATH_BEFORE = rospy.get_param("output_csv_before", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_before.csv")
+CSV_SAVE_PATH_AFTER = rospy.get_param("output_csv_after", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/optimize_after.csv")
+CSV_SAVE_PATH_GND = rospy.get_param("output_csv_ground", default="/home/mingi/catkin_ws/src/graph_optimization_mg_cs169/data/ground_truth.csv")
 
 # reference
 # https://stackoverflow.com/questions/31469847/python-argparse-unrecognized-arguments
@@ -37,6 +37,7 @@ def csv_data_saver(PATH, timelist, datalist):
 # =========== Graph constructor class including analysis of topics from rosbag =========== #
 class Graph_constructor():
     def __init__(self):
+        # subscriber and publisher
         self.cmd_subscriber = rospy.Subscriber("cmd_vel", Twist, self.cmd_callback)
         self.pose_subscriber = rospy.Subscriber("pose", PoseStamped, self.pose_callback)
         self.lidar_subscriber = rospy.Subscriber("scan", LaserScan, self.lidar_callback)
@@ -67,9 +68,17 @@ class Graph_constructor():
         self.initial_x = INITIAL_DIST_TO_WALL - INITIAL_DIST_TO_WALL
         self.X_list = []
 
-    # Even if the task is regarding pose,
-    # I keep subscribing to and using cmd_vel as the algorithm is based on the time when 1st cmd and last cmd was published
+
     def cmd_callback(self, msg):
+        """ cmd_vel call back function
+        Even if the task is regarding pose,
+        I keep subscribing to and using cmd_vel as the algorithm is based on the time when 1st cmd and last cmd was published
+        Args:
+            msg: subscribed cmd_vel msg
+
+        Output:
+            time recording for cmd_vel msg
+        """
         # from 2nd cmd_vel msg
         if self.initial_time_record_cmd is not None:
             self.time_record_cmd_now = rospy.get_time()
@@ -80,6 +89,14 @@ class Graph_constructor():
             self.time_record_cmd_now = self.initial_time_record_cmd
 
     def pose_callback(self, msg):
+        """ pose call back function
+        Args:
+            msg: subscribed pose msg containing information by wheel odometry
+
+        Output:
+            time recording for pose msg
+            pose difference between consecutive pose msgs
+        """
         # pose calculation since initial cmd_vel was published
         if self.initial_time_record_cmd is not None and rospy.get_time() >= self.initial_time_record_cmd:
             if self.initial_time_record_pose is not None:
@@ -103,6 +120,17 @@ class Graph_constructor():
                 self.pose_diff_list.append((time_difference, 0)) # pose still 0
 
     def lidar_callback(self, msg):
+        """ scan call back function
+        While we receive scan msg, the program iterpolates predicted pose depending on time synchronization and previous pose msg.
+        Args:
+            msg: subscribed scan msg containing information by laser scan
+
+        Output:
+            time recording for scan msg
+            scan difference between consecutive scan msgs
+            transition: pose difference based on interpolation
+            X_list: estimated robot's pose list
+        """
         # under condition that cmd_vel is published after serial bridge is configured in order to calculate based on system model(pose)
         if self.initial_time_record_cmd is not None and rospy.get_time() >= self.initial_time_record_cmd:
             front_distance = msg.ranges[INDEX]
@@ -149,6 +177,17 @@ class Graph_constructor():
                 print("pose not yet received!")
 
     def spin(self):
+        """ spin function
+        While rosbag is being played, it makes sure of running the entire program continusouly.
+        Args:
+            object itself
+
+        Output:
+            csv data file: ground truth
+            g2o data file: before and after optimization of graph
+            construction: graph as per PoseGraphOptimization class
+            optimization: optimize the graph
+        """
         while not rospy.is_shutdown():
             if len(self.X_list) != 0:
                 self.rate.sleep()
